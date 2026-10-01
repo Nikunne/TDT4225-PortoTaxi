@@ -9,3 +9,13 @@ Everything should be fine and set up after that.
 code in /src/
 
 the rest in root
+
+
+
+# Docker
+
+Docker is installed through
+> docker pull mysql:latest
+
+ Run
+>docker compose up -d
