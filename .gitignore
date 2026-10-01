@@ -2,6 +2,6 @@
 .venv
 
 *.env
-porto.csv
+data/porto.csv
 .idea
 /.idea
