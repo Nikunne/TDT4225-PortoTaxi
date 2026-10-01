@@ -5,6 +5,7 @@ requires-python = ">=3.13"
 dependencies = [
     "dotenv>=0.9.9",
     "haversine==2.8.1",
+    "holidays>=0.105",
     "ipykernel>=7.4.0",
     "matplotlib>=3.11.2",
     "mysql-connector-python==8.0.33",
