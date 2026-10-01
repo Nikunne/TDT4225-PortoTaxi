@@ -2,6 +2,10 @@
 .venv
 
 *.env
-data/porto.csv
+
 .idea
 /.idea
+
+.DS_Store
+
+/src/data
