@@ -1,21 +1,106 @@
-## SETUP
+# TDT4225 Porto Taxi
 
-# Set up a uv python venv, run in root
->uv sync --locked
+This project contains the Python and SQL work for Assignment 2 in TDT4225 - Very Large, Distributed Data Volumes. It uses the Porto Taxi Trajectory dataset and a MySQL 8.0.39 database.
 
-Everything should be fine and set up after that.
+## Project Structure
 
-# Folder structure
-code in /src/
+```text
+.
+├── compose.yaml          # MySQL 8.0.39 service definition
+├── pyproject.toml        # Project dependencies and Python version
+├── requirements.txt      # Assignment dependencies
+├── src/
+│   ├── eda.ipynb         # Exploratory data analysis and data-quality checks
+│   ├── insert.py         # Cleans and inserts data into MySQL
+│   ├── queries.py        # Runs the Part 2 assignment queries
+│   ├── DbConnector.py    # Connects Python to the MySQL database
+│   ├── data/porto.csv    # Porto Taxi Trajectory dataset
+│   └── results/*.png     # Analysis and query result images
+└── .env                  # Local database passwords; do not commit secrets
+```
 
-the rest in root
+## Requirements
 
+- Python 3.13 or newer
+- `uv`
+- Docker Desktop or another Docker installation
 
+## Setup
 
-# Docker
+Run these commands from the project root.
 
-Docker is installed through
-> docker pull mysql:latest
+### 1. Install the Python environment
 
- Run
->docker compose up -d
+```bash
+uv sync --locked
+```
+
+This creates or updates the project virtual environment from `uv.lock` and installs the required dependencies.
+
+### 2. Configure database credentials
+
+Create or update `.env` in the project root:
+
+```dotenv
+MYSQL_ROOT_PASSWORD=choose_a_root_password
+MYSQL_PASSWORD=choose_a_database_password
+```
+
+The database user created by Docker is `porto`, the database is `porto`, and the database password is read from `MYSQL_PASSWORD`.
+
+### 3. Start MySQL
+
+Start the database with Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+The MySQL server is available at `127.0.0.1:3306`. Compose uses the MySQL `8.0.39` image declared in `compose.yaml`; no separate `docker pull` command is required because Docker pulls the image automatically when needed.
+
+Check that the container is running:
+
+```bash
+docker compose ps
+```
+
+To stop the database without deleting its data:
+
+```bash
+docker compose down
+```
+
+## Assignment Workflow
+
+### Part 1: EDA, cleaning, and insertion
+
+1. Open `src/EDA.ipynb` to inspect the dataset and perform exploratory data analysis. The notebook examines the data distribution, trajectory contents, missing values, invalid trajectories, and other data-quality issues. Its figures and results are stored in `src/img/`.
+2. Run `src/insert.py` to clean the dataset and insert the prepared data into the MySQL database.
+3. The database schema and cleaning decisions should be documented in the report, including the relevant `CREATE TABLE` statements.
+
+### Part 2: Database queries
+
+Run `src/queries.py` after the data has been inserted. It handles the assignment queries, including taxi and trip counts, trip averages, the most-used call types, duration and distance statistics, City Hall proximity, invalid trips, midnight crossers, circular trips, and taxi idle time.
+
+## Running Python Files
+
+Because the project uses `uv`, run Python commands from the project root with:
+
+```bash
+uv run python src/insert.py
+uv run python src/queries.py
+```
+
+`DbConnector.py` loads `MYSQL_PASSWORD` from `.env` and connects to the MySQL database running in Docker. Start the database before running scripts that use the connector.
+
+## Troubleshooting
+
+- If the connection fails, verify that Docker is running and that `docker compose ps` shows the MySQL service as healthy or running.
+- If credentials were changed after the database was first started, remove the existing Docker volume and start again. This deletes the local database data:
+
+  ```bash
+  docker compose down -v
+  docker compose up -d
+  ```
+
+- Do not commit `.env` or real database passwords to the repository.
