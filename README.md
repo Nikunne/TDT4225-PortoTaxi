@@ -93,6 +93,26 @@ uv run python src/queries.py
 
 `DbConnector.py` loads `MYSQL_PASSWORD` from `.env` and connects to the MySQL database running in Docker. Start the database before running scripts that use the connector.
 
+
+## Viewing the congestion heatmap
+
+The Folium congestion heatmap should be served through a local HTTP server rather than opened directly from Finder.
+
+From the project root, run:
+
+```bash
+cd src/results
+uv run python -m http.server 8000
+```
+
+Then open the generated heatmap in your browser at:
+
+```text
+http://localhost:8000/congestion_heatmap.html
+```
+
+Keep the terminal running while viewing the map. Folium includes the required OpenStreetMap attribution. Avoid excessive reloading or large-scale requests to the public OpenStreetMap servers.
+
 ## Troubleshooting
 
 - If the connection fails, verify that Docker is running and that `docker compose ps` shows the MySQL service as healthy or running.
