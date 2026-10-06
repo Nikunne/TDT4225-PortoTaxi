@@ -46,8 +46,9 @@ class DataInserter:
             None
         """
         df = self.load_data()
-        df = self.prepare_polylines(df)
+        df = self.parse_polylines(df)
         df = self.remove_duplicate_trips(df)
+        df = self.remove_invalid_polylines(df)
         df = self.add_derived_fields(df)
         df = self.remove_outliers(df)
         print(f"Rows ready for insertion: {len(df):,}")
@@ -95,18 +96,33 @@ class DataInserter:
 
         return [[float(point[0]), float(point[1])] for point in parsed]
 
-    def prepare_polylines(self, df) -> pd.DataFrame:
-        """Parse POLYLINE values and remove empty or invalid trajectories.
+    def parse_polylines(self, df) -> pd.DataFrame:
+        """Parse every POLYLINE value into a list of coordinates.
+
+        Unusable values become None, so they can be removed after duplicates are handled.
 
         Args:
             df (pd.DataFrame): The Porto taxi data with raw POLYLINE values.
         Returns:
-            pd.DataFrame: The data with parsed POLYLINE values and invalid rows removed.
+            pd.DataFrame: The data with parsed POLYLINE values.
         """
-        before = len(df)
         df = df.copy()
         df["POLYLINE"] = df["POLYLINE"].map(self.parse_polyline)
-        invalid_or_empty = df["POLYLINE"].isna() | df["POLYLINE"].map(len).eq(0)
+        return df
+
+    @staticmethod
+    def remove_invalid_polylines(df) -> pd.DataFrame:
+        """Remove trips with an empty or invalid POLYLINE.
+
+        Args:
+            df (pd.DataFrame): The Porto taxi data with parsed POLYLINE values.
+        Returns:
+            pd.DataFrame: The data with empty and invalid trajectories removed.
+        """
+        before = len(df)
+        invalid_or_empty = df["POLYLINE"].map(
+            lambda polyline: polyline is None or len(polyline) == 0
+        )
         removed = int(invalid_or_empty.sum())
         df = df.loc[~invalid_or_empty].copy()
         print(f"Cleaning empty/invalid POLYLINE rows: removed {removed:,} of {before:,}")
@@ -116,6 +132,10 @@ class DataInserter:
     def remove_duplicate_trips(df) -> pd.DataFrame:
         """Keep the row with the longest trajectory for each TRIP_ID.
 
+        Runs before empty and invalid trajectories are removed, so every duplicate
+        row in the raw data is counted. An invalid POLYLINE counts as shorter than
+        an empty one, so a valid copy is always kept when one exists.
+
         Args:
             df (pd.DataFrame): The Porto taxi data with parsed POLYLINE values.
         Returns:
@@ -124,7 +144,9 @@ class DataInserter:
         before = len(df)
         duplicate_rows = int(df["TRIP_ID"].duplicated(keep=False).sum())
         df = df.copy()
-        df["_trajectory_length"] = df["POLYLINE"].map(len)
+        df["_trajectory_length"] = df["POLYLINE"].map(
+            lambda polyline: -1 if polyline is None else len(polyline)
+        )
         df = (
             df.sort_values("_trajectory_length", ascending=False, kind="mergesort")
             .drop_duplicates(subset="TRIP_ID", keep="first")
