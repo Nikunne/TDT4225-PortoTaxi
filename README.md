@@ -6,17 +6,17 @@ This project contains the Python and SQL work for Assignment 2 in TDT4225 - Very
 
 ```text
 .
-├── compose.yaml          # MySQL 8.0.39 service definition
-├── pyproject.toml        # Project dependencies and Python version
-├── requirements.txt      # Assignment dependencies
+├── compose.yaml              # MySQL 8.0.39 service definition
+├── pyproject.toml            # Project dependencies and Python version
+├── requirements.txt          # Assignment dependencies
 ├── src/
-│   ├── eda.ipynb         # Exploratory data analysis and data-quality checks
-│   ├── insert.py         # Cleans and inserts data into MySQL
-│   ├── queries.py        # Runs the Part 2 assignment queries
-│   ├── DbConnector.py    # Connects Python to the MySQL database
-│   ├── data/porto.csv    # Porto Taxi Trajectory dataset
-│   └── results/*.png     # Analysis and query result images
-└── .env                  # Local database passwords; do not commit secrets
+│   ├── eda.ipynb             # Exploratory data analysis and data-quality checks
+│   ├── insert.py             # Cleans and inserts data into MySQL
+│   ├── queries.py            # Runs the Part 2 assignment queries
+│   ├── DbConnector.py        # Connects Python to the MySQL database
+│   ├── data/porto.csv        # Porto Taxi Trajectory dataset
+│   └── results/*.png/csv     # Analysis and query results
+└── .env                      # Local database passwords; do not commit secrets
 ```
 
 ## Requirements
