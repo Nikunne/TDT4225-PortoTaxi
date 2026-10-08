@@ -73,7 +73,7 @@ docker compose down
 
 ### 4. Upload Dataset
 
-Download the Porto Taxi Trajectory dataset (`porto.csv`) from [Kaggle](https://www.kaggle.com/datasets/crailtap/taxi-trajectory) and upload it to the `src/data/` folder:
+Download the Porto Taxi Trajectory dataset (`porto.csv`) from [Kaggle](https://www.kaggle.com/datasets/crailtap/taxi-trajectory) and upload it to the `data` folder:
 
 ```text
 src/

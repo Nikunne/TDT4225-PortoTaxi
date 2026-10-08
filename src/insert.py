@@ -161,12 +161,12 @@ class DataInserter:
         return df
 
     def add_derived_fields(self, df) -> pd.DataFrame:
-        """Add the local start time, duration, and distance of each trip.
+        """Add the local start time, duration, distance, and speed flag of each trip.
 
         Args:
             df (pd.DataFrame): The Porto taxi data with parsed POLYLINE values.
         Returns:
-            pd.DataFrame: The data with start_time, duration_s, and distance_km columns added.
+            pd.DataFrame: The data with start_time, duration_s, distance_km, and BAD_MEASURE added.
         """
         df = df.copy()
         datetime_local = (
@@ -176,6 +176,8 @@ class DataInserter:
         df["start_time"] = datetime_local.dt.tz_localize(None)
         df["duration_s"] = (df["POLYLINE"].map(len) - 1) * GPS_INTERVAL_SECONDS
         df["distance_km"] = df["POLYLINE"].map(self.calculate_distance)
+        duration_hours = df["duration_s"].where(df["duration_s"] > 0) / 3600
+        df["BAD_MEASURE"] = (df["distance_km"] / duration_hours) > 150
         return df
 
     @staticmethod
@@ -203,22 +205,24 @@ class DataInserter:
         Returns:
             pd.DataFrame: The data with outlier trips removed.
         """
-        # TODO: Remove outliers using the IQR analysis from section 13 in EDA2.ipynb
+        # TODO: Remove outliers using the IQR analysis from section 13 in EDA.ipynb
         print("Removing outliers: not implemented yet, removed 0 rows")
         return df
 
     def drop_tables(self) -> None:
         """Drop the trips and gps_points tables so every run starts from empty tables.
 
-        gps_points is dropped first because it references trips with a foreign key.
+        Drop gps_points and the legacy trajectories table before trips because
+        both reference trips with foreign keys.
 
         Returns:
             None
         """
         self.cursor.execute("DROP TABLE IF EXISTS gps_points")
+        self.cursor.execute("DROP TABLE IF EXISTS trajectories")
         self.cursor.execute("DROP TABLE IF EXISTS trips")
         self.db_connection.commit()
-        print("Dropped existing trips and gps_points tables")
+        print("Dropped existing trips, gps_points, and legacy trajectories tables")
 
     def create_tables(self) -> None:
         """Create the trips and gps_points tables if they do not exist.
@@ -234,6 +238,7 @@ class DataInserter:
                 start_time DATETIME NOT NULL,
                 duration_s INT NOT NULL,
                 distance_km DOUBLE NOT NULL,
+                BAD_MEASURE BOOLEAN NOT NULL DEFAULT FALSE,
 
                 INDEX idx_taxi_id (taxi_id),
                 INDEX idx_start_time (start_time),
@@ -284,6 +289,7 @@ class DataInserter:
                 row.start_time.to_pydatetime(),
                 int(row.duration_s),
                 float(row.distance_km),
+                bool(row.BAD_MEASURE),
             ))
             gps_batch.extend(
                 (trip_id, point_order, longitude, latitude)
@@ -315,8 +321,8 @@ class DataInserter:
         """
         self.cursor.executemany("""
             INSERT INTO trips (
-                trip_id, taxi_id, call_type, start_time, duration_s, distance_km
-            ) VALUES (%s, %s, %s, %s, %s, %s)
+                trip_id, taxi_id, call_type, start_time, duration_s, distance_km, BAD_MEASURE
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 trip_id = VALUES(trip_id)
         """, trip_batch)
@@ -346,6 +352,7 @@ def main():
         inserter.run()
     except Exception as e:
         print("ERROR: Failed to insert data:", e)
+        raise
     finally:
         if inserter:
             inserter.connection.close_connection()

@@ -182,15 +182,19 @@ class QueryProgram:
         self.print_table(rows, headers, limit=PREVIEW_ROWS)
         self.save_csv("task_4a", rows, headers)
 
-    def task_4b(self):
+    def task_4b(self, exclude_bad_measure=False):
         """Compute the average duration and distance per call type, and the share
         of trips starting in the time bands 00-06, 06-12, 12-18, and 18-24.
 
+        Args:
+            exclude_bad_measure (bool): Exclude trips flagged as BAD_MEASURE.
         Returns:
             None
         """
-        self.print_header("4b. Average duration, distance, and start time bands per call type")
-        rows, headers = self.fetch("""
+        label = "excluding BAD_MEASURE trips" if exclude_bad_measure else "all trips"
+        trip_filter = "WHERE BAD_MEASURE = FALSE" if exclude_bad_measure else ""
+        self.print_header(f"4b. Average duration, distance, and start time bands per call type ({label})")
+        rows, headers = self.fetch(f"""
             SELECT call_type,
                    COUNT(*) AS trips,
                    AVG(duration_s) / 60 AS avg_duration_min,
@@ -200,30 +204,38 @@ class QueryProgram:
                    100 * AVG(HOUR(start_time) >= 12 AND HOUR(start_time) < 18) AS `12-18 %`,
                    100 * AVG(HOUR(start_time) >= 18) AS `18-24 %`
             FROM trips
+            {trip_filter}
             GROUP BY call_type
             ORDER BY call_type
         """)
         self.print_table(rows, headers)
-        self.save_csv("task_4b", rows, headers)
+        name = "task_4b_without_bad_measure" if exclude_bad_measure else "task_4b"
+        self.save_csv(name, rows, headers)
 
-    def task_5(self):
+    def task_5(self, exclude_bad_measure=False):
         """List the top 20 taxis by total hours driven, with total distance driven.
 
+        Args:
+            exclude_bad_measure (bool): Exclude trips flagged as BAD_MEASURE.
         Returns:
             None
         """
-        self.print_header("5. Taxis with the most total hours and distance driven")
-        rows, headers = self.fetch("""
+        label = "excluding BAD_MEASURE trips" if exclude_bad_measure else "all trips"
+        trip_filter = "WHERE BAD_MEASURE = FALSE" if exclude_bad_measure else ""
+        self.print_header(f"5. Taxis with the most total hours and distance driven ({label})")
+        rows, headers = self.fetch(f"""
             SELECT taxi_id,
                    SUM(duration_s) / 3600 AS total_hours,
                    SUM(distance_km) AS total_distance_km
             FROM trips
+            {trip_filter}
             GROUP BY taxi_id
             ORDER BY total_hours DESC
             LIMIT 20
         """)
         self.print_table(rows, headers)
-        self.save_csv("task_5", rows, headers)
+        name = "task_5_without_bad_measure" if exclude_bad_measure else "task_5"
+        self.save_csv(name, rows, headers)
 
     def task_6(self):
         """Find the trips with a GPS point within 100 m of Porto City Hall.
@@ -397,7 +409,9 @@ def main():
         program.task_3()
         program.task_4a()
         program.task_4b()
+        program.task_4b(exclude_bad_measure=True)
         program.task_5()
+        program.task_5(exclude_bad_measure=True)
         program.task_6()
         program.task_7()
         program.task_8()
