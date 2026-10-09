@@ -177,17 +177,18 @@ class QueryProgram:
         print(f"{len(rows):,} taxis in total")
         self.save_csv("task_4a", rows, headers)
 
-    def task_4b(self, exclude_bad_measure=False):
+    def task_4b(self, exclude_speed_anomalies=False):
         """Compute the average duration and distance per call type, and the share
         of trips starting in the time bands 00-06, 06-12, 12-18, and 18-24.
 
         Args:
-            exclude_bad_measure (bool): Exclude trips flagged as BAD_MEASURE.
+            exclude_speed_anomalies (bool): Exclude TRUE speed_anomaly_flag values;
+                retain trips with an unknown (NULL) flag.
         Returns:
             None
         """
-        label = "excluding BAD_MEASURE trips" if exclude_bad_measure else "all trips"
-        trip_filter = "WHERE BAD_MEASURE = FALSE" if exclude_bad_measure else ""
+        label = "excluding flagged speed anomalies" if exclude_speed_anomalies else "all trips"
+        trip_filter = "WHERE speed_anomaly_flag IS NOT TRUE" if exclude_speed_anomalies else ""
         self.print_header(f"4b. Average duration, distance, and start time bands per call type ({label})")
         rows, headers = self.fetch(f"""
             SELECT call_type,
@@ -204,19 +205,20 @@ class QueryProgram:
             ORDER BY call_type
         """)
         self.print_table(rows, headers)
-        name = "task_4b_without_bad_measure" if exclude_bad_measure else "task_4b"
+        name = "task_4b_without_speed_anomalies" if exclude_speed_anomalies else "task_4b"
         self.save_csv(name, rows, headers)
 
-    def task_5(self, exclude_bad_measure=False):
+    def task_5(self, exclude_speed_anomalies=False):
         """List the top 20 taxis by total hours driven, with total distance driven.
 
         Args:
-            exclude_bad_measure (bool): Exclude trips flagged as BAD_MEASURE.
+            exclude_speed_anomalies (bool): Exclude TRUE speed_anomaly_flag values;
+                retain trips with an unknown (NULL) flag.
         Returns:
             None
         """
-        label = "excluding BAD_MEASURE trips" if exclude_bad_measure else "all trips"
-        trip_filter = "WHERE BAD_MEASURE = FALSE" if exclude_bad_measure else ""
+        label = "excluding flagged speed anomalies" if exclude_speed_anomalies else "all trips"
+        trip_filter = "WHERE speed_anomaly_flag IS NOT TRUE" if exclude_speed_anomalies else ""
         self.print_header(f"5. Taxis with the most total hours and distance driven ({label})")
         rows, headers = self.fetch(f"""
             SELECT taxi_id,
@@ -229,7 +231,7 @@ class QueryProgram:
             LIMIT 20
         """)
         self.print_table(rows, headers)
-        name = "task_5_without_bad_measure" if exclude_bad_measure else "task_5"
+        name = "task_5_without_speed_anomalies" if exclude_speed_anomalies else "task_5"
         self.save_csv(name, rows, headers)
 
     def task_6(self):
@@ -404,9 +406,9 @@ def main():
         program.task_3()
         program.task_4a()
         program.task_4b()
-        program.task_4b(exclude_bad_measure=True)
+        program.task_4b(exclude_speed_anomalies=True)
         program.task_5()
-        program.task_5(exclude_bad_measure=True)
+        program.task_5(exclude_speed_anomalies=True)
         program.task_6()
         program.task_7()
         program.task_8()
