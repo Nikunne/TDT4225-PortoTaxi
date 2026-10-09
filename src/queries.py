@@ -14,6 +14,7 @@ CITY_HALL = (-8.62911, 41.15794)    # Porto City Hall: (longitude, latitude)
 CITY_HALL_RADIUS_M = 100
 CIRCULAR_TRIP_RADIUS_M = 50
 MIN_VALID_GPS_POINTS = 3
+GPS_INTERVAL_SECONDS = 15
 METERS_PER_DEGREE_LAT = 111_320
 PREVIEW_ROWS = 20
 RESULTS_DIR = Path(__file__).resolve().parent / "results" / "queries"
@@ -177,17 +178,18 @@ class QueryProgram:
         print(f"{len(rows):,} taxis in total")
         self.save_csv("task_4a", rows, headers)
 
-    def task_4b(self, exclude_bad_measure=False):
+    def task_4b(self, exclude_speed_anomalies=False):
         """Compute the average duration and distance per call type, and the share
         of trips starting in the time bands 00-06, 06-12, 12-18, and 18-24.
 
         Args:
-            exclude_bad_measure (bool): Exclude trips flagged as BAD_MEASURE.
+            exclude_speed_anomalies (bool): Only use trips with speed_anomaly_flag = FALSE,
+                which leaves out flagged trips and trips that could not be evaluated.
         Returns:
             None
         """
-        label = "excluding BAD_MEASURE trips" if exclude_bad_measure else "all trips"
-        trip_filter = "WHERE BAD_MEASURE = FALSE" if exclude_bad_measure else ""
+        label = "excluding speed anomalies" if exclude_speed_anomalies else "all trips"
+        trip_filter = "WHERE speed_anomaly_flag = FALSE" if exclude_speed_anomalies else ""
         self.print_header(f"4b. Average duration, distance, and start time bands per call type ({label})")
         rows, headers = self.fetch(f"""
             SELECT call_type,
@@ -204,19 +206,20 @@ class QueryProgram:
             ORDER BY call_type
         """)
         self.print_table(rows, headers)
-        name = "task_4b_without_bad_measure" if exclude_bad_measure else "task_4b"
+        name = "task_4b_without_speed_anomalies" if exclude_speed_anomalies else "task_4b"
         self.save_csv(name, rows, headers)
 
-    def task_5(self, exclude_bad_measure=False):
+    def task_5(self, exclude_speed_anomalies=False):
         """List the top 20 taxis by total hours driven, with total distance driven.
 
         Args:
-            exclude_bad_measure (bool): Exclude trips flagged as BAD_MEASURE.
+            exclude_speed_anomalies (bool): Only use trips with speed_anomaly_flag = FALSE,
+                which leaves out flagged trips and trips that could not be evaluated.
         Returns:
             None
         """
-        label = "excluding BAD_MEASURE trips" if exclude_bad_measure else "all trips"
-        trip_filter = "WHERE BAD_MEASURE = FALSE" if exclude_bad_measure else ""
+        label = "excluding speed anomalies" if exclude_speed_anomalies else "all trips"
+        trip_filter = "WHERE speed_anomaly_flag = FALSE" if exclude_speed_anomalies else ""
         self.print_header(f"5. Taxis with the most total hours and distance driven ({label})")
         rows, headers = self.fetch(f"""
             SELECT taxi_id,
@@ -229,7 +232,7 @@ class QueryProgram:
             LIMIT 20
         """)
         self.print_table(rows, headers)
-        name = "task_5_without_bad_measure" if exclude_bad_measure else "task_5"
+        name = "task_5_without_speed_anomalies" if exclude_speed_anomalies else "task_5"
         self.save_csv(name, rows, headers)
 
     def task_6(self):
@@ -361,11 +364,17 @@ class QueryProgram:
         """List the top 20 taxis with the highest average idle time between consecutive trips.
 
         Idle time is the next trip's start time minus the current trip's end time.
+        Trips with MISSING_DATA = TRUE and invalid trips (fewer than 3 GPS points)
+        are left out before consecutive trips are paired. A trip has fewer than 3
+        GPS points exactly when its duration is below (3 - 1) * 15 = 30 seconds.
 
         Returns:
             None
         """
-        self.print_header("10. Top 20 taxis with the highest average idle time between trips")
+        self.print_header(
+            "10. Top 20 taxis with the highest average idle time between trips "
+            "(excluding MISSING_DATA and invalid trips)"
+        )
         # Overlapping trips give a negative gap, which is counted as zero idle time
         rows, headers = self.fetch("""
             WITH ordered_trips AS (
@@ -375,6 +384,8 @@ class QueryProgram:
                            PARTITION BY taxi_id ORDER BY start_time
                        ) AS next_start_time
                 FROM trips
+                WHERE missing_data = FALSE
+                  AND duration_s >= %(min_duration_s)s
             )
             SELECT taxi_id,
                    AVG(GREATEST(TIMESTAMPDIFF(SECOND, end_time, next_start_time), 0)) / 3600
@@ -385,7 +396,7 @@ class QueryProgram:
             GROUP BY taxi_id
             ORDER BY avg_idle_hours DESC
             LIMIT 20
-        """)
+        """, {"min_duration_s": (MIN_VALID_GPS_POINTS - 1) * GPS_INTERVAL_SECONDS})
         self.print_table(rows, headers)
         self.save_csv("task_10", rows, headers)
 
@@ -404,9 +415,9 @@ def main():
         program.task_3()
         program.task_4a()
         program.task_4b()
-        program.task_4b(exclude_bad_measure=True)
+        program.task_4b(exclude_speed_anomalies=True)
         program.task_5()
-        program.task_5(exclude_bad_measure=True)
+        program.task_5(exclude_speed_anomalies=True)
         program.task_6()
         program.task_7()
         program.task_8()
