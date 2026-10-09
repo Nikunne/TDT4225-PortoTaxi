@@ -14,6 +14,7 @@ CITY_HALL = (-8.62911, 41.15794)    # Porto City Hall: (longitude, latitude)
 CITY_HALL_RADIUS_M = 100
 CIRCULAR_TRIP_RADIUS_M = 50
 MIN_VALID_GPS_POINTS = 3
+GPS_INTERVAL_SECONDS = 15
 METERS_PER_DEGREE_LAT = 111_320
 PREVIEW_ROWS = 20
 RESULTS_DIR = Path(__file__).resolve().parent / "results" / "queries"
@@ -363,11 +364,17 @@ class QueryProgram:
         """List the top 20 taxis with the highest average idle time between consecutive trips.
 
         Idle time is the next trip's start time minus the current trip's end time.
+        Trips with MISSING_DATA = TRUE and invalid trips (fewer than 3 GPS points)
+        are left out before consecutive trips are paired. A trip has fewer than 3
+        GPS points exactly when its duration is below (3 - 1) * 15 = 30 seconds.
 
         Returns:
             None
         """
-        self.print_header("10. Top 20 taxis with the highest average idle time between trips")
+        self.print_header(
+            "10. Top 20 taxis with the highest average idle time between trips "
+            "(excluding MISSING_DATA and invalid trips)"
+        )
         # Overlapping trips give a negative gap, which is counted as zero idle time
         rows, headers = self.fetch("""
             WITH ordered_trips AS (
@@ -377,6 +384,8 @@ class QueryProgram:
                            PARTITION BY taxi_id ORDER BY start_time
                        ) AS next_start_time
                 FROM trips
+                WHERE missing_data = FALSE
+                  AND duration_s >= %(min_duration_s)s
             )
             SELECT taxi_id,
                    AVG(GREATEST(TIMESTAMPDIFF(SECOND, end_time, next_start_time), 0)) / 3600
@@ -387,7 +396,7 @@ class QueryProgram:
             GROUP BY taxi_id
             ORDER BY avg_idle_hours DESC
             LIMIT 20
-        """)
+        """, {"min_duration_s": (MIN_VALID_GPS_POINTS - 1) * GPS_INTERVAL_SECONDS})
         self.print_table(rows, headers)
         self.save_csv("task_10", rows, headers)
 
