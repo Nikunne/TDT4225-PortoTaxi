@@ -142,8 +142,8 @@ class QueryProgram:
     def task_4a(self):
         """Find the most used call type per taxi.
 
-        Ties are broken alphabetically by call type. Prints how many taxis
-        have each call type as their most used, followed by the per-taxi table.
+        Ties are broken alphabetically by call type. Prints the first rows, a "..."
+        row and the last taxi, and saves the full table as CSV.
 
         Returns:
             None
@@ -151,8 +151,7 @@ class QueryProgram:
         self.print_header("4a. Most used call type per taxi")
         rows, headers = self.fetch("""
             WITH call_type_counts AS (
-                SELECT taxi_id, call_type, COUNT(*) AS trips,
-                       SUM(COUNT(*)) OVER (PARTITION BY taxi_id) AS taxi_trips
+                SELECT taxi_id, call_type, COUNT(*) AS trips
                 FROM trips
                 GROUP BY taxi_id, call_type
             ),
@@ -163,23 +162,19 @@ class QueryProgram:
                        ) AS call_type_rank
                 FROM call_type_counts
             )
-            SELECT taxi_id,
-                   call_type AS most_used_call_type,
-                   trips,
-                   100 * trips / taxi_trips AS share_pct
+            SELECT taxi_id AS TAXI_ID,
+                   call_type AS CALL_TYPE,
+                   trips AS max_trips
             FROM ranked
             WHERE call_type_rank = 1
             ORDER BY taxi_id
         """)
 
-        summary = {}
-        for row in rows:
-            summary[row[1]] = summary.get(row[1], 0) + 1
-        print("Number of taxis per most used call type:")
-        self.print_table(sorted(summary.items()), ["Most used call type", "Taxis"])
-        self.save_csv("task_4a_summary", sorted(summary.items()), ["most_used_call_type", "taxis"])
-        print()
-        self.print_table(rows, headers, limit=PREVIEW_ROWS)
+        shown = rows
+        if len(rows) > PREVIEW_ROWS + 1:
+            shown = rows[:PREVIEW_ROWS] + [("...", "", "")] + rows[-1:]
+        self.print_table(shown, headers)
+        print(f"{len(rows):,} taxis in total")
         self.save_csv("task_4a", rows, headers)
 
     def task_4b(self, exclude_bad_measure=False):
